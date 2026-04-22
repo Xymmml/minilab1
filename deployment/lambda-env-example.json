@@ -1,0 +1,17 @@
+{
+  "submission-event-fn": {
+    "Variables": {
+      "PROCESSING_FUNCTION_NAME": "processing-fn"
+    }
+  },
+  "processing-fn": {
+    "Variables": {
+      "RESULT_UPDATE_FUNCTION_NAME": "result-update-fn"
+    }
+  },
+  "result-update-fn": {
+    "Variables": {
+      "DATA_SERVICE_URL": "http://internal-data-service-url:5002"
+    }
+  }
+}
