@@ -1,5 +1,7 @@
 FROM python:3.10-slim
 
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+
 WORKDIR /app
 
 COPY requirements.txt .

@@ -13,11 +13,10 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-SERVICE_PORT = int(os.environ.get('SERVICE_PORT', 5001))
-WORKFLOW_SERVICE_URL = os.environ.get('WORKFLOW_SERVICE_URL', 'http://localhost:5002')
-DATA_SERVICE_URL = os.environ.get('DATA_SERVICE_URL', 'http://localhost:5003')
+SERVICE_PORT = int(os.environ.get('SERVICE_PORT', 5000))
+WORKFLOW_SERVICE_URL = os.environ.get('WORKFLOW_SERVICE_URL', 'http://workflow-service:5001')
 
-# Simple HTML template for the form
+# HTML template for the submission form
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
@@ -26,11 +25,7 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Creator Cloud Studio - Poster Submission</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -48,26 +43,10 @@ HTML_TEMPLATE = """
             max-width: 500px;
             width: 100%;
         }
-        h1 {
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 28px;
-        }
-        .subtitle {
-            color: #666;
-            margin-bottom: 30px;
-            font-size: 14px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            color: #333;
-            font-weight: 600;
-            font-size: 14px;
-        }
+        h1 { color: #333; margin-bottom: 8px; font-size: 28px; }
+        .subtitle { color: #666; margin-bottom: 30px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #333; font-weight: 600; font-size: 14px; }
         input, textarea {
             width: 100%;
             padding: 12px;
@@ -76,19 +55,9 @@ HTML_TEMPLATE = """
             font-size: 14px;
             transition: border-color 0.3s;
         }
-        input:focus, textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        textarea {
-            resize: vertical;
-            min-height: 100px;
-        }
-        .hint {
-            font-size: 12px;
-            color: #888;
-            margin-top: 4px;
-        }
+        input:focus, textarea:focus { outline: none; border-color: #667eea; }
+        textarea { resize: vertical; min-height: 100px; }
+        .hint { font-size: 12px; color: #888; margin-top: 4px; }
         button {
             width: 100%;
             padding: 14px;
@@ -101,42 +70,12 @@ HTML_TEMPLATE = """
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-        button:active {
-            transform: translateY(0);
-        }
-        .result {
-            margin-top: 30px;
-            padding: 20px;
-            border-radius: 12px;
-            display: none;
-        }
-        .result.show {
-            display: block;
-        }
-        .result.ready {
-            background: #d4edda;
-            border: 2px solid #28a745;
-        }
-        .result.needs-revision {
-            background: #fff3cd;
-            border: 2px solid #ffc107;
-        }
-        .result.incomplete {
-            background: #f8d7da;
-            border: 2px solid #dc3545;
-        }
-        .result h3 {
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-        .result p {
-            color: #333;
-            line-height: 1.6;
-        }
+        button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4); }
+        .result { margin-top: 30px; padding: 20px; border-radius: 12px; display: none; }
+        .result.show { display: block; }
+        .result.ready { background: #d4edda; border: 2px solid #28a745; }
+        .result.needs-revision { background: #fff3cd; border: 2px solid #ffc107; }
+        .result.incomplete { background: #f8d7da; border: 2px solid #dc3545; }
         .status-badge {
             display: inline-block;
             padding: 6px 16px;
@@ -148,11 +87,7 @@ HTML_TEMPLATE = """
         .status-ready { background: #28a745; color: white; }
         .status-needs-revision { background: #ffc107; color: #333; }
         .status-incomplete { background: #dc3545; color: white; }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            display: none;
-        }
+        .loading { text-align: center; padding: 20px; display: none; }
         .loading.show { display: block; }
         .spinner {
             border: 4px solid #f3f3f3;
@@ -163,10 +98,8 @@ HTML_TEMPLATE = """
             animation: spin 1s linear infinite;
             margin: 0 auto 15px;
         }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .back-link { display: block; margin-top: 20px; text-align: center; color: #667eea; text-decoration: none; }
     </style>
 </head>
 <body>
@@ -179,133 +112,103 @@ HTML_TEMPLATE = """
                 <label for="title">Event Title *</label>
                 <input type="text" id="title" name="title" placeholder="Enter event title" required>
             </div>
-            
             <div class="form-group">
                 <label for="description">Description *</label>
                 <textarea id="description" name="description" placeholder="Describe your event (minimum 30 characters)" required></textarea>
                 <p class="hint" id="descHint">0/30 characters minimum</p>
             </div>
-            
             <div class="form-group">
                 <label for="poster_filename">Poster Image Filename *</label>
                 <input type="text" id="poster_filename" name="poster_filename" placeholder="e.g., poster.jpg" required>
                 <p class="hint">Supported formats: .jpg, .jpeg, .png</p>
             </div>
-            
             <button type="submit" id="submitBtn">Submit Poster</button>
         </form>
         
         <div class="loading" id="loading">
             <div class="spinner"></div>
-            <p>Submitting your poster...</p>
+            <p>Processing your submission...</p>
         </div>
         
         <div class="result" id="result"></div>
+        
+        <a href="/" class="back-link" id="backLink" style="display:none;">Submit Another</a>
     </div>
     
     <script>
         const form = document.getElementById('submissionForm');
         const loading = document.getElementById('loading');
         const result = document.getElementById('result');
-        const submitBtn = document.getElementById('submitBtn');
+        const backLink = document.getElementById('backLink');
         const descInput = document.getElementById('description');
         const descHint = document.getElementById('descHint');
         
         descInput.addEventListener('input', function() {
             const len = this.value.length;
-            descHint.textContent = len < 30 ? `${len}/30 characters minimum` : `${len} characters (OK)`;
+            descHint.textContent = len < 30 ? len + '/30 characters minimum' : len + ' characters (OK)';
             descHint.style.color = len >= 30 ? '#28a745' : '#888';
         });
         
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            
-            const title = document.getElementById('title').value;
-            const description = document.getElementById('description').value;
-            const poster_filename = document.getElementById('poster_filename').value;
-            
+            const data = {
+                title: document.getElementById('title').value,
+                description: document.getElementById('description').value,
+                poster_filename: document.getElementById('poster_filename').value
+            };
             form.style.display = 'none';
             loading.classList.add('show');
             
             try {
-                const response = await fetch('/api/submit', {
+                const response = await fetch('/submit', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, description, poster_filename })
+                    body: JSON.stringify(data)
                 });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    // Poll for result
-                    checkResult(data.submission_id);
-                } else {
-                    showError(data.error || 'Submission failed');
+                const result = await response.json();
+                if (result.submission_id) {
+                    checkResult(result.submission_id);
                 }
             } catch (error) {
-                showError('Network error. Please try again.');
+                alert('Network error. Please try again.');
+                form.style.display = 'block';
+                loading.classList.remove('show');
             }
         });
         
         async function checkResult(submissionId) {
             const maxAttempts = 20;
             let attempts = 0;
-            
             const poll = async () => {
                 try {
-                    const response = await fetch(`/api/submissions/${submissionId}`);
+                    const response = await fetch('/result/' + submissionId);
                     const data = await response.json();
-                    
-                    if (data.submission && data.submission.status !== 'PENDING') {
-                        showResult(data.submission);
+                    if (data.status && data.status !== 'PENDING') {
+                        showResult(data);
                         return;
                     }
-                    
                     attempts++;
                     if (attempts < maxAttempts) {
                         setTimeout(poll, 500);
                     } else {
-                        showError('Processing timeout. Please try again.');
+                        alert('Processing timeout. Please try again.');
+                        window.location.reload();
                     }
                 } catch (error) {
                     attempts++;
-                    if (attempts < maxAttempts) {
-                        setTimeout(poll, 500);
-                    }
+                    if (attempts < maxAttempts) setTimeout(poll, 500);
                 }
             };
-            
             poll();
         }
         
-        function showResult(submission) {
+        function showResult(data) {
             loading.classList.remove('show');
             result.classList.add('show');
+            backLink.style.display = 'block';
             
-            let statusClass = 'ready';
-            let statusText = submission.status;
-            
-            if (submission.status === 'READY') {
-                statusClass = 'ready';
-            } else if (submission.status === 'NEEDS_REVISION') {
-                statusClass = 'needs-revision';
-            } else if (submission.status === 'INCOMPLETE') {
-                statusClass = 'incomplete';
-            }
-            
-            result.innerHTML = `
-                <span class="status-badge status-${statusClass}">${statusText}</span>
-                <p>${submission.result_note}</p>
-                <p style="margin-top: 10px; font-size: 12px; color: #666;">
-                    Submission ID: ${submission.id}
-                </p>
-            `;
-        }
-        
-        function showError(message) {
-            loading.classList.remove('show');
-            form.style.display = 'block';
-            alert(message);
+            let statusClass = data.status.toLowerCase().replace(' ', '-');
+            result.innerHTML = '<span class="status-badge status-' + statusClass + '">' + data.status + '</span><p>' + (data.note || '') + '</p><p style="margin-top:10px;font-size:12px;color:#666;">Submission ID: ' + data.id + '</p>';
         }
     </script>
 </body>
@@ -329,53 +232,39 @@ def health_check():
     })
 
 
-@app.route('/api/submit', methods=['POST'])
+@app.route('/submit', methods=['POST'])
 def submit_poster():
-    """
-    Accept user submission and forward to Workflow Service.
-    """
+    """Accept user submission and forward to Workflow Service."""
     data = request.get_json()
     
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     
-    # Validate required fields
     required_fields = ['title', 'description', 'poster_filename']
     for field in required_fields:
         if field not in data or not data[field]:
-            return jsonify({
-                'error': f'Missing required field: {field}'
-            }), 400
+            return jsonify({'error': f'Missing required field: {field}'}), 400
     
     try:
-        # Forward to Workflow Service
-        workflow_url = f"{WORKFLOW_SERVICE_URL}/process"
+        workflow_url = f"{WORKFLOW_SERVICE_URL}/submit"
         response = requests.post(workflow_url, json=data, timeout=5)
         
         if response.status_code == 202:
             result = response.json()
             return jsonify(result)
         else:
-            return jsonify({
-                'error': 'Workflow processing failed',
-                'details': response.text
-            }), 500
+            return jsonify({'error': 'Workflow processing failed'}), 500
             
     except requests.exceptions.ConnectionError:
-        return jsonify({
-            'error': 'Service temporarily unavailable',
-            'message': 'Please try again later'
-        }), 503
+        return jsonify({'error': 'Service temporarily unavailable'}), 503
 
 
-@app.route('/api/submissions/<submission_id>', methods=['GET'])
+@app.route('/result/<submission_id>', methods=['GET'])
 def get_submission_status(submission_id):
-    """
-    Get submission status from Data Service.
-    """
+    """Get submission status from Workflow Service."""
     try:
-        data_url = f"{DATA_SERVICE_URL}/submissions/{submission_id}"
-        response = requests.get(data_url)
+        workflow_url = f"{WORKFLOW_SERVICE_URL}/result/{submission_id}"
+        response = requests.get(workflow_url)
         
         if response.status_code == 200:
             return jsonify(response.json())
@@ -385,9 +274,7 @@ def get_submission_status(submission_id):
             return jsonify({'error': 'Failed to retrieve submission'}), 500
             
     except requests.exceptions.ConnectionError:
-        return jsonify({
-            'error': 'Data Service unavailable'
-        }), 503
+        return jsonify({'error': 'Service unavailable'}), 503
 
 
 if __name__ == '__main__':

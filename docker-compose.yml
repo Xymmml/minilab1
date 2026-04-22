@@ -1,51 +1,46 @@
-version: '3.8'
-
 services:
-  # Data Service - Container
-  data_service:
+  data-service:
     build:
-      context: ./containers/data_service
-    container_name: data_service
-    ports:
-      - "5003:5003"
+      context: .
+      dockerfile: containers/data_service/Dockerfile
+    container_name: creator-data-service
     environment:
-      - SERVICE_NAME=data_service
-      - SERVICE_PORT=5003
-    networks:
-      - cloud_studio
-
-  # Workflow Service - Container
-  workflow_service:
-    build:
-      context: ./containers/workflow_service
-    container_name: workflow_service
+      DATABASE_PATH: /data/submissions.db
+    volumes:
+      - data-service-db:/data
     ports:
       - "5002:5002"
-    environment:
-      - SERVICE_NAME=workflow_service
-      - SERVICE_PORT=5002
-      - DATA_SERVICE_URL=http://data_service:5003
-    depends_on:
-      - data_service
-    networks:
-      - cloud_studio
 
-  # Presentation Service - Container
-  presentation_service:
+  workflow-service:
     build:
-      context: ./containers/presentation_service
-    container_name: presentation_service
+      context: .
+      dockerfile: containers/workflow_service/Dockerfile
+    container_name: creator-workflow-service
+    environment:
+      DATA_SERVICE_URL: http://data-service:5002
+      LOCAL_ASYNC_MODE: "true"
+      PROCESSING_FUNCTION_NAME: processing-fn
+      RESULT_UPDATE_FUNCTION_NAME: result-update-fn
+    depends_on:
+      - data-service
+    volumes:
+      - ./functions/submission_event:/functions/submission_event
+      - ./functions/processing_function:/functions/processing_function
+      - ./functions/result_update:/functions/result_update
     ports:
       - "5001:5001"
-    environment:
-      - SERVICE_NAME=presentation_service
-      - SERVICE_PORT=5001
-      - WORKFLOW_SERVICE_URL=http://workflow_service:5002
-    depends_on:
-      - workflow_service
-    networks:
-      - cloud_studio
 
-networks:
-  cloud_studio:
-    driver: bridge
+  presentation-service:
+    build:
+      context: .
+      dockerfile: containers/presentation_service/Dockerfile
+    container_name: creator-presentation-service
+    environment:
+      WORKFLOW_SERVICE_URL: http://workflow-service:5001
+    depends_on:
+      - workflow-service
+    ports:
+      - "5000:5000"
+
+volumes:
+  data-service-db:

@@ -5,17 +5,16 @@ Handles storage and retrieval of submission records.
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import json
 import os
 from datetime import datetime
 
 app = Flask(__name__)
 CORS(app)
 
-# In-memory storage (in production, use a database like PostgreSQL or MongoDB)
+# In-memory storage
 submissions_db = {}
 
-SERVICE_PORT = int(os.environ.get('SERVICE_PORT', 5003))
+SERVICE_PORT = int(os.environ.get('SERVICE_PORT', 5002))
 
 
 def generate_id():
@@ -34,8 +33,8 @@ def health_check():
     })
 
 
-@app.route('/submissions', methods=['POST'])
-def create_submission():
+@app.route('/records', methods=['POST'])
+def create_record():
     """
     Create a new submission record.
     Called by Workflow Service after user submits the form.
@@ -45,55 +44,40 @@ def create_submission():
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     
-    # Extract required fields
-    submission_id = generate_id()
-    title = data.get('title', '')
-    description = data.get('description', '')
-    poster_filename = data.get('poster_filename', '')
-    
-    # Create initial submission record
-    submission_record = {
+    submission_id = data.get('id', generate_id())
+    record = {
         'id': submission_id,
-        'title': title,
-        'description': description,
-        'poster_filename': poster_filename,
-        'status': 'PENDING',
-        'result_note': '',
+        'title': data.get('title', ''),
+        'description': data.get('description', ''),
+        'poster_filename': data.get('poster_filename', ''),
+        'status': data.get('status', 'PENDING'),
+        'note': data.get('note', ''),
         'created_at': datetime.now().isoformat(),
         'updated_at': datetime.now().isoformat()
     }
     
-    # Store the submission
-    submissions_db[submission_id] = submission_record
+    submissions_db[submission_id] = record
+    print(f"[Data Service] Created record: {submission_id}")
     
-    print(f"[Data Service] Created submission: {submission_id}")
-    
-    return jsonify({
-        'success': True,
-        'submission_id': submission_id,
-        'submission': submission_record
-    }), 201
+    return jsonify(record), 201
 
 
-@app.route('/submissions/<submission_id>', methods=['GET'])
-def get_submission(submission_id):
+@app.route('/records/<record_id>', methods=['GET'])
+def get_record(record_id):
     """
     Retrieve a submission record by ID.
     Called by Presentation Service to display results to user.
     """
-    submission = submissions_db.get(submission_id)
+    record = submissions_db.get(record_id)
     
-    if not submission:
-        return jsonify({'error': 'Submission not found'}), 404
+    if not record:
+        return jsonify({'error': 'submission not found'}), 404
     
-    return jsonify({
-        'success': True,
-        'submission': submission
-    })
+    return jsonify(record)
 
 
-@app.route('/submissions/<submission_id>', methods=['PUT'])
-def update_submission(submission_id):
+@app.route('/records/<record_id>', methods=['PUT'])
+def update_record(record_id):
     """
     Update a submission record.
     Called by Result Update Function after processing.
@@ -103,25 +87,38 @@ def update_submission(submission_id):
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     
-    submission = submissions_db.get(submission_id)
+    record = submissions_db.get(record_id)
     
-    if not submission:
-        return jsonify({'error': 'Submission not found'}), 404
+    if not record:
+        return jsonify({'error': 'submission not found'}), 404
     
     # Update fields
     if 'status' in data:
-        submission['status'] = data['status']
-    if 'result_note' in data:
-        submission['result_note'] = data['result_note']
+        record['status'] = data['status']
+    if 'note' in data:
+        record['note'] = data['note']
     
-    submission['updated_at'] = datetime.now().isoformat()
+    record['updated_at'] = datetime.now().isoformat()
     
-    print(f"[Data Service] Updated submission: {submission_id} -> {submission['status']}")
+    print(f"[Data Service] Updated record: {record_id} -> {record['status']}")
     
-    return jsonify({
-        'success': True,
-        'submission': submission
-    })
+    return jsonify(record)
+
+
+# Backward compatibility aliases
+@app.route('/submissions', methods=['POST'])
+def create_submission():
+    return create_record()
+
+
+@app.route('/submissions/<submission_id>', methods=['GET'])
+def get_submission(submission_id):
+    return get_record(submission_id)
+
+
+@app.route('/submissions/<submission_id>', methods=['PUT'])
+def update_submission(submission_id):
+    return update_record(submission_id)
 
 
 @app.route('/submissions', methods=['GET'])
