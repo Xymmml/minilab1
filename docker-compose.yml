@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # Data Service - Container
+  data_service:
+    build:
+      context: ./containers/data_service
+    container_name: data_service
+    ports:
+      - "5003:5003"
+    environment:
+      - SERVICE_NAME=data_service
+      - SERVICE_PORT=5003
+    networks:
+      - cloud_studio
+
+  # Workflow Service - Container
+  workflow_service:
+    build:
+      context: ./containers/workflow_service
+    container_name: workflow_service
+    ports:
+      - "5002:5002"
+    environment:
+      - SERVICE_NAME=workflow_service
+      - SERVICE_PORT=5002
+      - DATA_SERVICE_URL=http://data_service:5003
+    depends_on:
+      - data_service
+    networks:
+      - cloud_studio
+
+  # Presentation Service - Container
+  presentation_service:
+    build:
+      context: ./containers/presentation_service
+    container_name: presentation_service
+    ports:
+      - "5001:5001"
+    environment:
+      - SERVICE_NAME=presentation_service
+      - SERVICE_PORT=5001
+      - WORKFLOW_SERVICE_URL=http://workflow_service:5002
+    depends_on:
+      - workflow_service
+    networks:
+      - cloud_studio
+
+networks:
+  cloud_studio:
+    driver: bridge
